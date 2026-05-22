@@ -93,6 +93,7 @@ exports("HospitalICUSend", function(target)
 		Player(target).state.ICU = true
 		char:SetData("ICU", {
 			Released = false,
+			Items    = false,
 		})
 
 		CreateThread(function()
@@ -105,7 +106,7 @@ exports("HospitalICUSend", function(target)
 		exports['pulsar-pwnzor']:TempPosIgnore(target)
 		TriggerClientEvent("Hospital:Client:ICU:Sent", target)
 		TriggerClientEvent("Hospital:Client:ICU:Enter", target)
-		exports['pulsar-hud']:Notification("info", target, "You Were Admitted To ICU")
+		exports['pulsar-hud']:Notification(target, "info", "Admitted To ICU - Your items have been secured and will be returned upon discharge")
 	else
 		return false
 	end
@@ -119,7 +120,7 @@ exports("HospitalICURelease", function(target)
 			Released = true,
 			Items = false,
 		})
-		exports['pulsar-hud']:Notification("info", target, "You Were Released From ICU")
+		exports['pulsar-hud']:Notification(target, "info", "Released From ICU - Head to reception to retrieve your items")
 	else
 		return false
 	end
@@ -134,6 +135,7 @@ exports("HospitalICUGetItems", function(target)
 			Items = true,
 		})
 		exports.ox_inventory:HoldingTake(target)
+		exports['pulsar-hud']:Notification(target, "success", "Items Retrieved — Your belongings have been returned.")
 	else
 		return false
 	end

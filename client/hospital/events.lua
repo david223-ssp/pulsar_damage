@@ -25,23 +25,8 @@ local hospitalCheckin = {
 		label = "Check In - $1500",
 		event = "Hospital:Client:CheckIn",
 		canInteract = function()
-			if not GlobalState["Duty:ems"] or GlobalState["Duty:ems"] == 0 then
-				return not LocalPlayer.state.isEscorted
-					and (GlobalState["ems:pmc:doctor"] == nil or GlobalState["ems:pmc:doctor"] == 0)
-			end
-			return false
-		end,
-	},
-	{
-		icon = "fas fa-clipboard-check",
-		label = "Check In - $1500",
-		event = "Hospital:Client:CheckIn",
-		canInteract = function()
-			if GlobalState["Duty:ems"] and GlobalState["Duty:ems"] > 0 then
-				return not LocalPlayer.state.isEscorted
-					and (GlobalState["ems:pmc:doctor"] == nil or GlobalState["ems:pmc:doctor"] == 0)
-			end
-			return false
+			return not LocalPlayer.state.isEscorted
+				and (GlobalState["ems:pmc:doctor"] == nil or GlobalState["ems:pmc:doctor"] == 0)
 		end,
 	},
 	{
@@ -49,8 +34,8 @@ local hospitalCheckin = {
 		label = "Retrieve Items",
 		event = "Hospital:Client:RetreiveItems",
 		canInteract = function()
-			return LocalPlayer.state.Character:GetData("ICU") == nil
-				or not LocalPlayer.state.Character:GetData("ICU").Items
+			local icu = LocalPlayer.state.Character:GetData("ICU")
+			return icu ~= nil and not icu.Items
 		end,
 	},
 }
