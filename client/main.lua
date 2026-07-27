@@ -1,221 +1,228 @@
 _reductions = 0
 
-AddEventHandler('onClientResourceStart', function(resource)
-    if resource == GetCurrentResourceName() then
-        Wait(1000)
-        exports["pulsar-core"]:RegisterClientCallback("Damage:Heal", function(s)
-            if s then
-                LocalPlayer.state.deadData = {}
-                exports['pulsar-damage']:ReductionsReset()
-                exports['pulsar-hud']:ClearBuffs()
-            end
-            exports['pulsar-damage']:Revive()
-        end)
+-- isDead/deadData/isDeadTime/releaseTime are server-authoritative now (see pulsar_damage/server/main.lua's
+-- health-monitor loop) - this local mirrors the confirmed server state, it never decides death itself
+_dmg = {
+	loggedIn = false,
+	isDead = false,
+}
 
-        exports["pulsar-core"]:RegisterClientCallback("Damage:FieldStabalize", function(s)
-            exports['pulsar-damage']:Revive(true)
-        end)
+CreateThread(function()
+	plsr.State.flags.isHospitalized = false
+	plsr.State.flags.isDeadTime = false
+	plsr.State.flags.releaseTime = false
+	plsr.State.flags.isDead = false
+	plsr.State.flags.deadData = false
+	plsr.State.flags.isGodmode = false
 
-        exports["pulsar-core"]:RegisterClientCallback("Damage:Kill", function()
-            ApplyDamageToPed(LocalPlayer.state.ped, 10000)
-        end)
+	plsr.State:Watch('flags', 'isDead', function(value)
+		_dmg.isDead = value
+	end)
 
-        exports["pulsar-core"]:RegisterClientCallback("Damage:Admin:Godmode", function(s)
-            if s then
-                exports['pulsar-hud']:ApplyBuff("godmode")
-            else
-                exports['pulsar-hud']:RemoveBuff("godmode")
-            end
-        end)
-    end
+	plsr.Callbacks:RegisterClientCallback("Damage:Client:OnDeath", function(data)
+		if _dmg.isDead or not _dmg.loggedIn then
+			return
+		end
+		_dmg.isDead = true
+		plsr.State.flags.isDeadTime = data.deadTime
+		plsr.State.flags.releaseTime = data.releaseTime
+		plsr.Hud.DeathTexts:Show(data.isMinor and "knockout" or "death", data.deadTime, data.releaseTime)
+		plsr.Hud:Dead(true)
+		DoDeadEvent()
+
+		if plsr.Jail:IsJailed() or not nearPlayer(100.0) then
+			TriggerServerEvent("EmergencyAlerts:Server:DoPredefined", "injuredPerson")
+		end
+	end)
+
+	plsr.Callbacks:RegisterClientCallback("Damage:Heal", function(s)
+		if s then
+			plsr.State.flags.deadData = {}
+			plsr.Damage.Reductions:Reset()
+		end
+		plsr.Damage:Revive()
+	end)
+
+	plsr.Callbacks:RegisterClientCallback("Damage:FieldStabalize", function(s)
+		plsr.Damage:Revive(true)
+	end)
+
+	plsr.Callbacks:RegisterClientCallback("Damage:Kill", function()
+		ApplyDamageToPed(PlayerPedId(), 10000)
+	end)
+
+	plsr.Callbacks:RegisterClientCallback("Damage:Admin:Godmode", function(s)
+		if s then
+			plsr.Buffs:ApplyBuff("godmode")
+		else
+			plsr.Buffs:RemoveBuffType("godmode")
+		end
+	end)
+end)
+
+AddEventHandler("Proxy:Shared:RegisterReady", function()
+	exports["pulsar_core"]:RegisterComponent("Damage", DAMAGE)
 end)
 
 RegisterNetEvent("Characters:Client:Spawned", function()
-    StartThreads()
+	_dmg.loggedIn = true
+	StartThreads()
 
-    exports['pulsar-hud']:RegisterBuff("weakness", "bandage", "#FF0049", -1, "permanent")
-    exports['pulsar-hud']:RegisterBuff("godmode", "shield-virus", "#FFBB04", -1, "permanent")
+	plsr.Buffs:RegisterBuff("weakness", "suitcase-medical", "#FF0049", -1, "permanent")
+	plsr.Buffs:RegisterBuff("godmode", "shield-quartered", "#FFBB04", -1, "permanent")
 
-    _reductions = LocalPlayer.state.Character:GetData("HPReductions") or 0
-    if _reductions > 0 then
-        exports['pulsar-hud']:ApplyBuff("weakness", -1)
-    else
-        exports['pulsar-hud']:RemoveBuff("weakness")
-    end
-    exports['pulsar-damage']:CalculateMaxHp()
+	_reductions = plsr.State.character.HPReductions or 0
+	if _reductions > 0 then
+		plsr.Buffs:ApplyUniqueBuff("weakness", -1)
+	else
+		plsr.Buffs:RemoveBuffType("weakness")
+	end
+	plsr.Damage:CalculateMaxHp()
 
-    if LocalPlayer.state.isDead then
-        exports['pulsar-hud']:DeathTextsShow(
-            (LocalPlayer.state.deadData and LocalPlayer.state.deadData.isMinor) and "knockout" or "death",
-            LocalPlayer.state.isDeadTime,
-            LocalPlayer.state.releaseTime)
-        exports['pulsar-hud']:Dead(true)
-        DoDeadEvent()
-    end
+	if plsr.State.flags.isDead then
+		local deadData = plsr.State.flags.deadData
+		plsr.Hud.DeathTexts:Show(
+			deadData and deadData.isMinor and "knockout" or "death",
+			plsr.State.flags.isDeadTime,
+			plsr.State.flags.releaseTime
+		)
+		plsr.Hud:Dead(true)
+		DoDeadEvent()
+	end
 end)
 
 RegisterNetEvent("Characters:Client:Logout", function()
-    if LocalPlayer.state.isDead then
-        if Config.EnableDownblur then
-            AnimpostfxStop("DeathFailMPIn")
-        end
-        exports['pulsar-hud']:DeathTextsHide()
-        ClearPedTasksImmediately(ped)
+	_dmg.loggedIn = false
+	if plsr.State.flags.isDead then
+		AnimpostfxStop("DeathFailMPIn")
+		plsr.Hud.DeathTexts:Hide()
+		ClearPedTasksImmediately(PlayerPedId())
+	end
 
-        LocalPlayer.state:set("isDead", false, true)
-        LocalPlayer.state:set("deadData", false, true)
-        LocalPlayer.state:set("isDeadTime", false, true)
-        LocalPlayer.state:set("releaseTime", false, true)
-    end
-
-    exports['pulsar-hud']:RemoveBuff("weakness")
+	plsr.Buffs:RemoveBuffType("weakness")
 end)
 
 RegisterNetEvent('UI:Client:Reset', function(apps)
-    if not LocalPlayer.state.isDead and not LocalPlayer.state.isHospitalized then
-        exports['pulsar-hud']:DeathTextsHide()
-        exports['pulsar-hud']:Dead(false)
-        if _reductions > 0 then
-            exports['pulsar-hud']:ApplyBuff("weakness", -1)
-        else
-            exports['pulsar-hud']:RemoveBuff("weakness")
-        end
-    end
+	if not plsr.State.flags.isDead and not plsr.State.flags.isHospitalized then
+		plsr.Hud.DeathTexts:Hide()
+		plsr.Hud:Dead(false)
+		if _reductions > 0 then
+			plsr.Buffs:ApplyUniqueBuff("weakness", -1)
+		else
+			plsr.Buffs:RemoveBuffType("weakness")
+		end
+	end
 end)
 
-exports("ReductionsIncrease", function(amt)
-    _reductions += amt
-    exports['pulsar-hud']:ApplyBuff("weakness", -1)
-    exports["pulsar-core"]:ServerCallback("Damage:SyncReductions", _reductions)
-    exports['pulsar-damage']:CalculateMaxHp()
-end)
+DAMAGE = {
+	Reductions = {
+		Increase = function(self, amt)
+			_reductions += amt
+			plsr.Buffs:ApplyUniqueBuff("weakness", -1)
+			plsr.Callbacks:ServerCallback("Damage:SyncReductions", _reductions)
+			plsr.Damage:CalculateMaxHp()
+		end,
+		Reset = function(self)
+			_reductions = 0
+			plsr.Buffs:RemoveBuffType("weakness")
+			plsr.Callbacks:ServerCallback("Damage:SyncReductions", _reductions)
+			plsr.Damage:CalculateMaxHp()
+		end,
+	},
+	CalculateMaxHp = function(self)
+		local ped = PlayerPedId()
+		local curr = GetEntityHealth(ped)
+		local currMax = GetEntityMaxHealth(ped)
 
-exports("ReductionsReset", function()
-    _reductions = 0
-    exports['pulsar-hud']:RemoveBuff("weakness")
-    exports["pulsar-core"]:ServerCallback("Damage:SyncReductions", _reductions)
-    exports['pulsar-damage']:CalculateMaxHp()
-end)
+		local mod = 0.25 * _reductions
+		if mod > 0.8 then
+			mod = 0.8
+		end
 
-exports("CalculateMaxHp", function()
-    local ped = PlayerPedId()
-    local curr = GetEntityHealth(ped)
-    local currMax = GetEntityMaxHealth(ped)
+		local newMax = 100 + math.ceil(100 * (1.0 - mod))
 
-    local mod = 0.25 * _reductions
-    if mod > 0.8 then
-        mod = 0.8
-    end
+		SetEntityMaxHealth(ped, newMax)
 
-    local newMax = 100 + math.ceil(100 * (1.0 - mod))
+		local newHp = curr
+		if curr > newMax then
+			SetEntityHealth(ped, newMax)
+		end
 
-    SetEntityMaxHealth(ped, newMax)
+		plsr.Hud:ForceHP()
+	end,
+	Revive = function(self, fieldTreat)
+		local player = PlayerPedId()
 
-    local newHp = curr
-    if curr > newMax then
-        SetEntityHealth(ped, newMax)
-    end
+		if plsr.State.flags.isDead then
+			DoScreenFadeOut(1000)
+			while not IsScreenFadedOut() do
+				Wait(10)
+			end
+		end
 
-    exports['pulsar-hud']:ForceHP()
-end)
+		local wasDead = plsr.State.flags.isDead
+		local deadData = plsr.State.flags.deadData
+		local wasMinor = deadData and deadData.isMinor
 
-exports("WasDead", function(sid)
-    return _deadCunts[sid] ~= nil
-end)
+		_dmg.isDead = false
 
-exports("Revive", function(fieldTreat)
-    local player = PlayerPedId()
+		local veh = GetVehiclePedIsIn(player)
+		local seat = 0
+		if veh ~= 0 then
+			local m = GetEntityModel(veh)
+			for k = -1, GetVehicleModelNumberOfSeats(m) do
+				if GetPedInVehicleSeat(veh, k) == player then
+					seat = k
+				end
+			end
+		end
 
-    if LocalPlayer.state.isDead then
-        DoScreenFadeOut(1000)
-        while not IsScreenFadedOut() do
-            Wait(10)
-        end
-    end
+		if veh == 0 then
+			--ClearPedTasksImmediately(player)
+		else
+			Wait(300)
+			TaskWarpPedIntoVehicle(player, veh, seat)
+			Wait(300)
+		end
 
-    local wasDead = LocalPlayer.state.isDead
-    local wasMinor = LocalPlayer.state.deadData and LocalPlayer.state.deadData.isMinor
+		TriggerServerEvent("Damage:Server:Revived", wasMinor, fieldTreat)
+		plsr.Hud:Dead(false)
 
-    if LocalPlayer.state.isDead then
-        LocalPlayer.state:set("isDead", false, true)
-    end
-    if LocalPlayer.state.deadData then
-        LocalPlayer.state:set("deadData", false, true)
-    end
-    if LocalPlayer.state.isDeadTime then
-        LocalPlayer.state:set("isDeadTime", false, true)
-    end
-    if LocalPlayer.state.releaseTime then
-        LocalPlayer.state:set("releaseTime", false, true)
-    end
+		if not plsr.State.flags.isHospitalized and wasDead then
+			plsr.Hud.DeathTexts:Hide()
+			SetEntityInvincible(player, plsr.State.flags.isAdmin and plsr.State.flags.isGodmode or false)
+		end
 
-    local veh = GetVehiclePedIsIn(player)
-    local seat = 0
-    if veh ~= 0 then
-        local m = GetEntityModel(veh)
-        for k = -1, GetVehicleModelNumberOfSeats(m) do
-            if GetPedInVehicleSeat(veh, k) == player then
-                seat = k
-            end
-        end
-    end
+		if _reductions > 0 then
+			plsr.Buffs:ApplyUniqueBuff("weakness", -1)
+		else
+			plsr.Buffs:RemoveBuffType("weakness")
+		end
 
-    -- if IsPedDeadOrDying(player) then
-    --     local loc = GetEntityCoords(player)
-    --     NetworkResurrectLocalPlayer(loc, true, true, false)
-    -- end
+		local mod = 0.25 * _reductions
+		if mod > 0.8 then
+			mod = 0.8
+		end
+		local newMax = 100 + math.ceil(100 * (1.0 - mod))
 
-    if veh == 0 then
-        --ClearPedTasksImmediately(player)
-    else
-        Wait(300)
-        TaskWarpPedIntoVehicle(player, veh, seat)
-        Wait(300)
-    end
+		SetEntityHealth(player, newMax)
+		SetPlayerSprint(PlayerId(), true)
+		ClearPedBloodDamage(player)
 
-    TriggerServerEvent("Damage:Server:Revived", wasMinor, fieldTreat)
-    exports['pulsar-hud']:Dead(false)
+		if not fieldTreat then
+			plsr.Status:Reset()
+		end
 
-    if not LocalPlayer.state.isHospitalized and wasDead then
-        exports['pulsar-hud']:DeathTextsHide()
-        SetEntityInvincible(player, LocalPlayer.state.isAdmin and LocalPlayer.state.isGodmode or false)
-    end
+		DoScreenFadeIn(1000)
 
-    if _reductions > 0 then
-        exports['pulsar-hud']:ApplyBuff("weakness", -1)
-    else
-        exports['pulsar-hud']:RemoveBuff("weakness")
-    end
-
-    local mod = 0.25 * _reductions
-    if mod > 0.8 then
-        mod = 0.8
-    end
-    local newMax = 100 + math.ceil(100 * (1.0 - mod))
-
-    SetEntityHealth(player, newMax)
-    SetPlayerSprint(PlayerId(), true)
-    ClearPedBloodDamage(player)
-
-    if not fieldTreat then
-        exports['pulsar-status']:Reset()
-    end
-
-    DoScreenFadeIn(1000)
-
-    if not LocalPlayer.state.isHospitalized and wasDead and veh == 0 then
-        exports['pulsar-animations']:EmotesPlay("reviveshit", false, 1750, true)
-    end
-end)
-
-exports("Died", function()
-    -- Empty for now
-end)
-
-exports("ApplyStandardDamage", function(value, armorFirst, forceKill)
-    if forceKill and not _hasKO then
-        _hasKO = true
-    end
-
-    ApplyDamageToPed(LocalPlayer.state.ped, value, armorFirst)
-end)
+		if not plsr.State.flags.isHospitalized and wasDead and veh == 0 then
+			plsr.Animations.Emotes:Play("reviveshit", false, 1750, true)
+		end
+	end,
+	Died = function(self) end,
+	Apply = {
+		StandardDamage = function(self, value, armorFirst, forceKill)
+			ApplyDamageToPed(PlayerPedId(), value, armorFirst)
+		end,
+	},
+}

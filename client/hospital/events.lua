@@ -1,47 +1,75 @@
+local config = load(LoadResourceFile(GetCurrentResourceName(), "config/shared.lua"))()
+
 local hospitalCheckin = {
 	{
-		icon = "fas fa-clipboard-check",
-		label = "Go On Duty",
+		icon = "clipboard-list",
+		text = "Go On Duty",
 		event = "EMS:Client:OnDuty",
-		groups = { "ems" },
-		reqOffDuty = true,
+		jobPerms = {
+			{
+				job = "ems",
+				reqOffDuty = true,
+			},
+		},
 	},
 	{
-		icon = "fas fa-clipboard",
-		label = "Go Off Duty",
+		icon = "clipboard-list",
+		text = "Go Off Duty",
 		event = "EMS:Client:OffDuty",
-		groups = { "ems" },
-		reqDuty = true,
+		jobPerms = {
+			{
+				job = "ems",
+				reqDuty = true,
+			},
+		},
 	},
 	{
-		icon = "fas fa-clipboard",
-		label = "Check ICU Patients",
+		icon = "clipboard-list",
+		text = "Check ICU Patients",
 		event = "EMS:Client:CheckICUPatients",
-		groups = { "ems" },
-		reqDuty = true,
+		jobPerms = {
+			{
+				job = "ems",
+			},
+		},
 	},
 	{
-		icon = "fas fa-clipboard-check",
-		label = "Check In - $1500",
+		icon = "clipboard-list",
+		text = "Check In - $" .. config.Medical.checkInPrice,
 		event = "Hospital:Client:CheckIn",
-		canInteract = function()
-			return not LocalPlayer.state.isEscorted
-				and (GlobalState["ems:pmc:doctor"] == nil or GlobalState["ems:pmc:doctor"] == 0)
+		isEnabled = function()
+			if not GlobalState["Duty:ems"] or GlobalState["Duty:ems"] == 0 then
+				return plsr.State.flags.myEscorter == nil
+					and (GlobalState["ems:pmc:doctor"] == nil or GlobalState["ems:pmc:doctor"] == 0)
+			end
+			return false
 		end,
 	},
 	{
-		icon = "fas fa-hands-holding",
-		label = "Retrieve Items",
+		icon = "clipboard-list",
+		text = "Check In - $" .. config.Medical.checkInPrice,
+		event = "Hospital:Client:CheckIn",
+		isEnabled = function()
+			if GlobalState["Duty:ems"] and GlobalState["Duty:ems"] > 0 then
+				return plsr.State.flags.myEscorter == nil
+					and (GlobalState["ems:pmc:doctor"] == nil or GlobalState["ems:pmc:doctor"] == 0)
+			end
+			return false
+		end,
+	},
+	{
+		icon = "hands-holding",
+		text = "Retrieve Items",
 		event = "Hospital:Client:RetreiveItems",
-		canInteract = function()
-			local icu = LocalPlayer.state.Character:GetData("ICU")
-			return icu ~= nil and not icu.Items
+		isEnabled = function()
+			local icu = plsr.State.character.ICU
+			return icu == nil or not icu.Items
 		end,
 	},
 }
 
 function Init()
-	exports['pulsar-pedinteraction']:Add(
+	plsr.PedInteraction:Add(
 		"hospital-check-in-1",
 		`u_f_m_miranda_02`,
 		vector3(1125.869, -1531.991, 34.033),
@@ -51,7 +79,7 @@ function Init()
 		"notes-medical",
 		"WORLD_HUMAN_CLIPBOARD"
 	)
-	exports['pulsar-pedinteraction']:Add(
+	plsr.PedInteraction:Add(
 		"hospital-check-in-2",
 		`s_f_y_scrubs_01`,
 		vector3(1144.530, -1543.017, 34.033),
@@ -61,7 +89,7 @@ function Init()
 		"notes-medical",
 		"WORLD_HUMAN_CLIPBOARD"
 	)
-	exports['pulsar-pedinteraction']:Add(
+	plsr.PedInteraction:Add(
 		"hospital-check-in-3",
 		`s_f_y_scrubs_01`,
 		vector3(1135.842, -1539.658, 38.504),
@@ -72,67 +100,66 @@ function Init()
 		"WORLD_HUMAN_CLIPBOARD"
 	)
 
-	for k, v in ipairs(Config.BedModels) do
-		exports.ox_target:addModel(v, {
+	for k, v in ipairs(config.Hospital.bedModels) do
+		plsr.Targeting:AddObject(v, "bed-pulse", {
 			{
-				icon = "stretcher",
-				label = "Lay in Bed",
+				icon = "bed-pulse",
+				text = "Lay in Bed",
 				event = "Hospital:Client:FindBed",
-				distance = 1.5,
-				canInteract = function()
-					return LocalPlayer.state.isEscorting == nil
-						and LocalPlayer.state.myEscorter == nil
-						and not LocalPlayer.state.isHospitalized
+				minDist = 1.5,
+				isEnabled = function()
+					return plsr.State.flags.isEscorting == nil
+						and plsr.State.flags.myEscorter == nil
+						and not plsr.State.flags.isHospitalized
 				end,
 			},
-		})
+		}, 1.5)
 	end
 
-	for k, v in ipairs(Config.BedPolys) do
-		exports.ox_target:addBoxZone({
-			id = string.format("hospitalbed-%s", k),
-			coords = v.center,
-			size = vector3(v.length, v.width, 2.0),
-			rotation = v.options.heading or 0,
-			debug = false,
-			minZ = v.options.minZ,
-			maxZ = v.options.maxZ,
-			options = {
+	for k, v in ipairs(config.Hospital.bedPolys) do
+		plsr.Targeting.Zones:AddBox(
+			string.format("hospitalbed-%s", k),
+			"bed-pulse",
+			v.center,
+			v.length,
+			v.width,
+			v.options,
+			{
 				{
-					icon = "stretcher",
-					label = "Lay Down",
+					icon = "bed-pulse",
+					text = "Lay Down",
 					event = "Hospital:Client:LaydownAnimation",
-					onSelect = function()
-						TriggerEvent("Hospital:Client:LaydownAnimation", v.laydown)
-					end,
+					data = v.laydown,
 				},
-			}
-		})
+			},
+			1.5,
+			true
+		)
 	end
 end
 
 AddEventHandler("Hospital:Client:LaydownAnimation", function(hitting, coords)
-	SetEntityCoords(LocalPlayer.state.ped, coords.x, coords.y, coords.z)
-	SetEntityHeading(LocalPlayer.state.ped, coords.w)
-	exports['pulsar-animations']:EmotesPlay("passout3", true)
-	LocalPlayer.state:set("isHospitalized", true, true)
+	SetEntityCoords(PlayerPedId(), coords.x, coords.y, coords.z)
+	SetEntityHeading(PlayerPedId(), coords.w)
+	plsr.Animations.Emotes:Play("passout3", true)
+	plsr.State:SetPublicClientFlag('isHospitalized', true)
 
-	while exports['pulsar-animations']:EmotesGet() == "passout3" do
+	while plsr.Animations.Emotes:Get() == "passout3" do
 		Wait(250)
 	end
 
 	-- print("Out of Bed")
-	LocalPlayer.state:set("isHospitalized", false, true)
+	plsr.State:SetPublicClientFlag('isHospitalized', false)
 end)
 
 AddEventHandler("Hospital:Client:RetreiveItems", function()
-	exports["pulsar-core"]:ServerCallback("Hospital:RetreiveItems")
+	plsr.Callbacks:ServerCallback("Hospital:RetreiveItems")
 end)
 
 AddEventHandler("Hospital:Client:HiddenRevive", function(entity, data)
-	exports['pulsar-hud']:Progress({
+	plsr.Progress:Progress({
 		name = "ammo_action",
-		duration = (math.random(5) + 15) * 1000,
+		duration = (math.random(config.Medical.reviveEscortDuration.variance) + config.Medical.reviveEscortDuration.base) * 1000,
 		label = "Reviving",
 		useWhileDead = false,
 		canCancel = true,
@@ -148,9 +175,9 @@ AddEventHandler("Hospital:Client:HiddenRevive", function(entity, data)
 		},
 	}, function(status)
 		if not status then
-			exports["pulsar-core"]:ServerCallback("Hospital:HiddenRevive", {}, function(s)
+			plsr.Callbacks:ServerCallback("Hospital:HiddenRevive", {}, function(s)
 				if s then
-					exports['pulsar-escort']:StopEscort()
+					plsr.Escort:StopEscort()
 				end
 			end)
 		end
@@ -158,15 +185,15 @@ AddEventHandler("Hospital:Client:HiddenRevive", function(entity, data)
 end)
 
 RegisterNetEvent("Characters:Client:Logout", function()
-	if LocalPlayer.state.isHospitalized then
-		LocalPlayer.state:set("isHospitalized", false, true)
+	if plsr.State.flags.isHospitalized then
+		plsr.State:SetPublicClientFlag('isHospitalized', false)
 	end
 end)
 
 AddEventHandler("Hospital:Client:CheckIn", function()
-	exports['pulsar-hud']:ProgressWithStartEvent({
+	plsr.Progress:ProgressWithStartEvent({
 		name = "hospital_action",
-		duration = 2500,
+		duration = config.Medical.checkInDuration,
 		label = "Checking In",
 		useWhileDead = true,
 		canCancel = true,
@@ -182,18 +209,18 @@ AddEventHandler("Hospital:Client:CheckIn", function()
 		},
 		disarm = true,
 	}, function()
-		LocalPlayer.state:set("isHospitalized", true, true)
+		plsr.State:SetPublicClientFlag('isHospitalized', true)
 	end, function(status)
 		if not status then
-			exports['pulsar-damage']:HospitalCheckIn()
+			plsr.Hospital:CheckIn()
 		else
-			LocalPlayer.state:set("isHospitalized", false, true)
+			plsr.State:SetPublicClientFlag('isHospitalized', false)
 		end
 	end)
 end)
 
 RegisterNetEvent("Hospital:Client:GetOut", function()
-	exports["pulsar-core"]:ServerCallback("Hospital:LeaveBed", {}, function()
+	plsr.Callbacks:ServerCallback("Hospital:LeaveBed", {}, function()
 		_doing = false
 		LeaveBed()
 	end)
@@ -203,7 +230,7 @@ AddEventHandler("Hospital:Client:FindBed", function(event, data)
 	if not event then
 		return
 	end
-	exports['pulsar-damage']:HospitalFindBed(event.entity)
+	plsr.Hospital:FindBed(event.entity)
 end)
 
 RegisterNetEvent("Hospital:Client:ICU:Enter", function()
@@ -214,11 +241,11 @@ RegisterNetEvent("Hospital:Client:ICU:Enter", function()
 		end
 	end
 
-	local room = Config.ICUBeds[math.random(#Config.ICUBeds)]
+	local room = config.Hospital.icuBeds[math.random(#config.Hospital.icuBeds)]
 
-	SetEntityCoords(LocalPlayer.state.ped, room[1], room[2], room[3], 0, 0, 0, false)
+	SetEntityCoords(PlayerPedId(), room[1], room[2], room[3], 0, 0, 0, false)
 	Wait(100)
-	SetEntityHeading(LocalPlayer.state.ped, room[4])
+	SetEntityHeading(PlayerPedId(), room[4])
 	_disabled = false
 
 	Wait(1000)

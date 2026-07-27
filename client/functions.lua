@@ -1,3 +1,5 @@
+local config = load(LoadResourceFile(GetCurrentResourceName(), "config/shared.lua"))()
+
 local koDict = "mini@cpr@char_b@cpr_def"
 local koAnim = "cpr_pumpchest_idle"
 
@@ -17,77 +19,35 @@ CreateThread(function()
 end)
 
 function ApplyLimp(ped)
-	local shouldLimp = (GetEntityHealth(ped) - 100) <= math.floor((GetEntityMaxHealth(ped) - 100) / 4)
-	if shouldLimp and not (LocalPlayer.state.onPainKillers or 0 > 0) then
-		if not LocalPlayer.state.isLimping then
-			LocalPlayer.state.isLimping = true
-			exports['pulsar-animations']:PedFeaturesRequestFeaturesUpdate()
+	local shouldLimp = (GetEntityHealth(ped) - 100) <= math.floor((GetEntityMaxHealth(ped) - 100) * config.Vitals.limpThreshold)
+	if shouldLimp and not (plsr.State.flags.onPainKillers or 0 > 0) then -- pre-existing bug: parses as `X or (0 > 0)`, i.e. `not X`
+		if not plsr.State.flags.isLimping then
+			plsr.State.flags.isLimping = true
+			plsr.Animations.PedFeatures:RequestFeaturesUpdate()
 		end
 	else
-		if LocalPlayer.state.isLimping then
-			LocalPlayer.state.isLimping = false
-			exports['pulsar-animations']:PedFeaturesRequestFeaturesUpdate()
+		if plsr.State.flags.isLimping then
+			plsr.State.flags.isLimping = false
+			plsr.Animations.PedFeatures:RequestFeaturesUpdate()
 		end
 	end
 end
-
-function GetReleaseTime(isMinor)
-	if LocalPlayer.state.isDead then
-		if isMinor then
-			return 60 * 1
-		else
-			if LocalPlayer.state.onDuty == "police" or LocalPlayer.state.onDuty == "ems" then
-				return 60 * 3
-			else
-				return 60 * 5
-			end
-		end
-	else
-		return 0
-	end
-end
-
-function wasMinorDeath(hash)
-	if Config.Weapons[hash] == nil or not Config.Weapons[hash].minor then
-		return false
-	else
-		return true
-	end
-end
-
-local changeHandler = nil
-RegisterNetEvent("Characters:Client:Spawn", function()
-	-- changeHandler = AddStateBagChangeHandler(
-	-- 	"isDead",
-	-- 	string.format("player:%s", GetPlayerServerId(LocalPlayer.state.PlayerID)),
-	-- 	function(bagName, key, value, _unused, replicated)
-	-- 		DoDeadEvent()
-	-- 	end
-	-- )
-end)
-
-RegisterNetEvent("Characters:Client:Logout", function()
-	if changeHandler ~= nil then
-		RemoveStateBagChangeHandler(changeHandler)
-		changeHandler = nil
-	end
-end)
 
 function DoDeadEvent()
-	if LocalPlayer.state.isDead then
-		TriggerEvent('ox_inventory:disarm', LocalPlayer.state.ped, true)
-		if not LocalPlayer.state.gameMode then
-			exports['pulsar-hud']:RemoveBuff("weakness")
+	if _dmg.isDead then
+		plsr.Weapons:UnequipIfEquippedNoAnim()
+		if not plsr.State.flags.gameMode then
+			plsr.Buffs:RemoveBuffType("weakness")
 			DisableControls()
 			DeadAnimLoop()
 		else
-			exports['pulsar-hud']:DeathTextsHide()
-			TriggerEvent(string.format("Damage:Client:Gamemode:%s:Died", LocalPlayer.state.gameMode))
+			plsr.Hud.DeathTexts:Hide()
+			TriggerEvent(string.format("Damage:Client:Gamemode:%s:Died", plsr.State.flags.gameMode))
 		end
 	else
-		exports['pulsar-hud']:DeathTextsHide()
+		plsr.Hud.DeathTexts:Hide()
 		ClearPedTasksImmediately(PlayerPedId())
-		SetEntityInvincible(PlayerPedId(), LocalPlayer.state.isAdmin and LocalPlayer.state.isGodmode or false)
+		SetEntityInvincible(PlayerPedId(), plsr.State.flags.isAdmin and plsr.State.flags.isGodmode or false)
 	end
 end
 
@@ -118,9 +78,7 @@ function DeadAnimLoop()
 			Wait(10)
 		end
 
-		if Config.EnableDownblur then
-			AnimpostfxPlay("DeathFailMPIn", 100.0, true)
-		end
+		AnimpostfxPlay("DeathFailMPIn", 100.0, true)
 
 		local loc = GetEntityCoords(ped)
 		NetworkResurrectLocalPlayer(loc, true, true, false)
@@ -132,7 +90,8 @@ function DeadAnimLoop()
 			Wait(300)
 		end
 
-		if (type(LocalPlayer.state.deadData) == "table") and LocalPlayer.state?.deadData?.isMinor then
+		local deadData = plsr.State.flags.deadData
+		if type(deadData) == "table" and deadData.isMinor then
 			aDict = koDict
 			aAnim = koAnim
 		end
@@ -144,10 +103,11 @@ function DeadAnimLoop()
 		if not deathLooping then
 			deathLooping = true
 
-			while LocalPlayer.state.loggedIn and LocalPlayer.state.isDead and not LocalPlayer.state.isHospitalized do
+			while _dmg.loggedIn and _dmg.isDead and not plsr.State.flags.isHospitalized do
 				ped = PlayerPedId()
 
-				if not LocalPlayer.state?.deadData?.isMinor then
+				local dd = plsr.State.flags.deadData
+				if not (dd and dd.isMinor) then
 					SetEntityInvincible(ped, true)
 				else
 					SetEntityInvincible(ped, false)
@@ -157,20 +117,19 @@ function DeadAnimLoop()
 					TaskPlayAnim(ped, vehDict, vehAnim, 8.0, -8, -1, 1, 0, 0, 0, 0)
 				elseif IsEntityInWater(ped) then
 					TaskPlayAnim(ped, drownDict, drownAnim, 8.0, -8, -1, 1, 0, 0, 0, 0)
-				elseif LocalPlayer.state.inTrunk then
+				elseif plsr.State.flags.inTrunk then
 					-- dosomething?
 				else
 					TaskPlayAnim(ped, aDict, aAnim, 1.0, 1.0, -1, 1, 0, 0, 0, 0)
 				end
 				Wait(100)
 			end
-			if Config.EnableDownblur then
-				AnimpostfxStop("DeathFailMPIn")
-			end
 
-			exports['pulsar-hud']:DeathTextsHide()
+			AnimpostfxStop("DeathFailMPIn")
+
+			plsr.Hud.DeathTexts:Hide()
 			ClearPedTasksImmediately(ped)
-			SetEntityInvincible(ped, LocalPlayer.state.isAdmin and LocalPlayer.state.isGodmode or false)
+			SetEntityInvincible(ped, plsr.State.flags.isAdmin and plsr.State.flags.isGodmode or false)
 
 			deathLooping = false
 		end
@@ -182,7 +141,7 @@ function DisableControls()
 	if disabling then return end
 	disabling = true
 	CreateThread(function()
-		while LocalPlayer.state.loggedIn and LocalPlayer.state.isDead do
+		while _dmg.loggedIn and _dmg.isDead do
 			DisableControlAction(0, 30, true) -- disable left/right
 			DisableControlAction(0, 31, true) -- disable forward/back
 			DisableControlAction(0, 36, true) -- INPUT_DUCK
@@ -214,9 +173,9 @@ end
 
 function nearPlayer(dist)
 	local peds = GetGamePool("CPed")
-	local myCoords = GetEntityCoords(LocalPlayer.state.ped)
+	local myCoords = GetEntityCoords(PlayerPedId())
 	for _, ped in ipairs(peds) do
-		if ped ~= LocalPlayer.state.ped and IsPedAPlayer(ped) then
+		if ped ~= PlayerPedId() and IsPedAPlayer(ped) then
 			local entCoords = GetEntityCoords(ped)
 			if #(entCoords - myCoords) <= dist then
 				return true

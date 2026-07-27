@@ -38,7 +38,7 @@ function SetBedCam(bed)
 	TaskPlayAnim(player, inBedDict, inBedAnim, 8.0, 1.0, -1, 1, 0, 0, 0, 0)
 	CreateThread(function()
 		Wait(500)
-		while LocalPlayer.state.isHospitalized and not _leavingBed do
+		while plsr.State.flags.isHospitalized and not _leavingBed do
 			TaskPlayAnim(player, inBedDict, inBedAnim, 8.0, 1.0, -1, 1, 0, 0, 0, 0)
 			--FreezeEntityPosition(player, true)
 			SetEntityInvincible(player, true)
@@ -55,7 +55,7 @@ function SetBedCam(bed)
 	SetCamFov(cam, 90.0)
 	SetCamRot(cam, -90.0, 0.0, GetEntityHeading(player) + 180, true)
 
-	LocalPlayer.state:set("isHospitalized", true, true)
+	plsr.State:SetPublicClientFlag('isHospitalized', true)
 	DoScreenFadeIn(1000)
 	while not IsScreenFadedIn() do
 		Wait(1)
@@ -66,7 +66,7 @@ end
 function LeaveBed()
 	local player = PlayerPedId()
 
-	if LocalPlayer.state.isDead then
+	if _dmg.isDead then
 		DoDeadEvent()
 	else
 		RequestAnimDict(getOutDict)
@@ -75,9 +75,9 @@ function LeaveBed()
 		end
 
 		if _reductions > 0 then
-			exports['pulsar-hud']:ApplyBuff("weakness", -1)
+			plsr.Buffs:ApplyUniqueBuff("weakness", -1)
 		else
-			exports['pulsar-hud']:RemoveBuff("weakness")
+			plsr.Buffs:RemoveBuffType("weakness")
 		end
 
 		SetEntityInvincible(player, false)
@@ -86,22 +86,22 @@ function LeaveBed()
 		ClearPedTasksImmediately(player)
 	end
 
-	exports["pulsar-core"]:ServerCallback("Hospital:LeaveBed")
+	plsr.Callbacks:ServerCallback("Hospital:LeaveBed")
 	if _curBed ~= nil and not _curBed.freeBed then
-		exports['pulsar-damage']:HospitalLeaveBed()
+		plsr.Hospital:LeaveBed()
 	end
 
 	--FreezeEntityPosition(player, false)
 
-	if LocalPlayer.state.isCuffed then
+	if plsr.State.flags.isCuffed then
 		SetPedConfigFlag(ped, 120, true)
-		SetPedConfigFlag(ped, 121, LocalPlayer.state.isHardCuffed)
+		SetPedConfigFlag(ped, 121, plsr.State.flags.isHardCuffed)
 	end
 
 	RenderScriptCams(0, true, 200, true, true)
 	DestroyCam(cam, false)
-	exports['pulsar-hud']:DeathTextsHide()
+	plsr.Hud.DeathTexts:Hide()
 	_curBed = nil
 	_leavingBed = false
-	LocalPlayer.state:set("isHospitalized", false, true)
+	plsr.State:SetPublicClientFlag('isHospitalized', false)
 end

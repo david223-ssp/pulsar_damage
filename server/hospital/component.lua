@@ -1,142 +1,138 @@
-BED_LIMIT = #Config.Beds
+local config = load(LoadResourceFile(GetCurrentResourceName(), "config/shared.lua"))()
+
+BED_LIMIT = #config.Hospital.beds
 _inBed = {}
 _inBedChar = {}
 
 local _medsForSale = {
-	{ item = "firstaid", coin = "MALD", price = 20,  qty = -1, vpn = false, requireCurrency = false },
-	{ item = "ifak",     coin = "MALD", price = 100, qty = -1, vpn = false, requireCurrency = true },
+	{ item = "firstaid", coin = "MALD", price = config.Medical.blackmarketMeds.firstaid, qty = -1, vpn = false, requireCurrency = false },
+	{ item = "ifak", coin = "MALD", price = config.Medical.blackmarketMeds.ifak, qty = -1, vpn = false, requireCurrency = true },
 }
 
-AddEventHandler('onResourceStart', function(resource)
-	if resource == GetCurrentResourceName() then
-		Wait(1000)
-		HospitalCallbacks()
-		HospitalMiddleware()
 
-		GlobalState["HiddenHospital"] = {
-			coords = vector3(2810.023, 5977.588, 349.919),
-			heading = 146.641,
-		}
+CreateThread(function()
+	HospitalCallbacks()
+	HospitalMiddleware()
 
-		exports['pulsar-pedinteraction']:VendorCreate("BlackmarketMeds", "ped", "Medical Supplies", `S_M_M_Paramedic_01`,
-			{
-				coords = vector3(2815.044, 5980.179, 349.928),
-				heading = 277.889,
-				scenario = "WORLD_HUMAN_CLIPBOARD",
-			}, _medsForSale, "pump-medical", "View Supplies", false, false, true)
+	GlobalState["HiddenHospital"] = {
+		coords = vector3(2810.023, 5977.588, 349.919),
+		heading = 146.641,
+	}
 
-		exports["pulsar-chat"]:RegisterAdminCommand("clearbeds", function(source, args, rawCommand)
-			_inBed = {}
-		end, {
-			help = "Force Clear All Hospital Beds",
-			params = {},
-		}, -1)
-	end
+	plsr.Vendor:Create("BlackmarketMeds", "ped", "Medical Supplies", `S_M_M_Paramedic_01`, {
+		coords = vector3(2815.044, 5980.179, 349.928),
+		heading = 277.889,
+		scenario = "WORLD_HUMAN_CLIPBOARD",
+	}, _medsForSale, "pump-medical", "View Supplies", false, false, true)
+
+	plsr.Chat:RegisterAdminCommand("clearbeds", function(source, args, rawCommand)
+		_inBed = {}
+	end, {
+		help = "Force Clear All Hospital Beds",
+		params = {},
+	}, -1)
 end)
 
-exports("HospitalRequestBed", function(source)
-	--return math.random(#Config.Beds)
-	for k, v in ipairs(Config.Beds) do
-		if _inBed[k] == nil then
-			return k
+HOSPITAL = {
+	RequestBed = function(self, source)
+		--return math.random(#config.Hospital.beds)
+		for k, v in ipairs(config.Hospital.beds) do
+			if _inBed[k] == nil then
+				return k
+			end
 		end
-	end
-	return nil
-end)
-
-exports("HospitalFindBed", function(source, location)
-	for k, v in ipairs(Config.Beds) do
-		if (#(vector3(v.x, v.y, v.z) - vector3(location.x, location.y, location.z)) <= 2.0) and not _inBed[k] then
-			return k
+		return nil
+	end,
+	FindBed = function(self, source, location)
+		for k, v in ipairs(config.Hospital.beds) do
+			if (#(vector3(v.x, v.y, v.z) - vector3(location.x, location.y, location.z)) <= 2.0) and not _inBed[k] then
+				return k
+			end
 		end
-	end
-	return nil
-end)
-
-exports("HospitalOccupyBed", function(source, bedId)
-	local char = exports['pulsar-characters']:FetchCharacterSource(source)
-	if char and Config.Beds[bedId] ~= nil then
-		if _inBed[bedId] == nil then
-			_inBedChar[char:GetData("ID")] = bedId
-			_inBed[bedId] = char:GetData("ID")
-			return true
+		return nil
+	end,
+	OccupyBed = function(self, source, bedId)
+		local char = plsr.Fetch:CharacterSource(source)
+		if char and config.Hospital.beds[bedId] ~= nil then
+			if _inBed[bedId] == nil then
+				_inBedChar[char:GetData("ID")] = bedId
+				_inBed[bedId] = char:GetData("ID")
+				return true
+			else
+				return false
+			end
 		else
 			return false
 		end
-	else
-		return false
-	end
-end)
-
-exports("HospitalLeaveBed", function(source)
-	local char = exports['pulsar-characters']:FetchCharacterSource(source)
-	if char ~= nil then
-		local inBedId = _inBedChar[char:GetData("ID")]
-		if inBedId ~= nil then
-			_inBed[inBedId] = nil
-			_inBedChar[char:GetData("ID")] = nil
-			return true
+	end,
+	LeaveBed = function(self, source)
+		local char = plsr.Fetch:CharacterSource(source)
+		if char ~= nil then
+			local inBedId = _inBedChar[char:GetData("ID")]
+			if inBedId ~= nil then
+				_inBed[inBedId] = nil
+				_inBedChar[char:GetData("ID")] = nil
+				return true
+			end
 		end
-	end
-	return false
-end)
-
-exports("HospitalICUSend", function(target)
-	local char = exports['pulsar-characters']:FetchCharacterSource(target)
-	if char ~= nil then
-		if char:GetData("ICU") ~= nil and not char:GetData("ICU").Released then
-			return false
-		end
-
-		exports['pulsar-labor']:JailSentenced(target)
-
-		Player(target).state.ICU = true
-		char:SetData("ICU", {
-			Released = false,
-			Items    = false,
-		})
-
-		CreateThread(function()
-			exports['pulsar-jobs']:DutyOff(target, Player(target).state.onDuty)
-			exports['pulsar-police']:UncuffTarget(-1, target)
-			exports['pulsar-ped']:MaskUnequipNoItem(target)
-			exports.ox_inventory:HoldingPut(target)
-		end)
-
-		exports['pulsar-pwnzor']:TempPosIgnore(target)
-		TriggerClientEvent("Hospital:Client:ICU:Sent", target)
-		TriggerClientEvent("Hospital:Client:ICU:Enter", target)
-		exports['pulsar-hud']:Notification(target, "info", "Admitted To ICU - Your items have been secured and will be returned upon discharge")
-	else
 		return false
-	end
-end)
+	end,
+	ICU = {
+		Send = function(self, target)
+			local char = plsr.Fetch:CharacterSource(target)
+			if char ~= nil then
+				if char:GetData("ICU") ~= nil and not char:GetData("ICU").Released then
+					return false
+				end
 
-exports("HospitalICURelease", function(target)
-	local char = exports['pulsar-characters']:FetchCharacterSource(target)
-	if char ~= nil then
-		Player(target).state.ICU = false
-		char:SetData("ICU", {
-			Released = true,
-			Items = false,
-		})
-		exports['pulsar-hud']:Notification(target, "info", "Released From ICU - Head to reception to retrieve your items")
-	else
-		return false
-	end
-end)
+				plsr.Labor.Jail:Sentenced(target)
 
-exports("HospitalICUGetItems", function(target)
-	local char = exports['pulsar-characters']:FetchCharacterSource(target)
-	if char ~= nil then
-		Player(target).state.ICU = false
-		char:SetData("ICU", {
-			Released = true,
-			Items = true,
-		})
-		exports.ox_inventory:HoldingTake(target)
-		exports['pulsar-hud']:Notification(target, "success", "Items Retrieved — Your belongings have been returned.")
-	else
-		return false
-	end
+				char:SetData("ICU", {
+					Released = false,
+				})
+
+				CreateThread(function()
+					plsr.Jobs.Duty:Off(target, plsr.State:Player(target).onDuty)
+					plsr.Handcuffs:UncuffTarget(-1, target)
+					plsr.Ped.Mask:UnequipNoItem(target)
+					plsr.Inventory.Holding:Put(target)
+				end)
+
+				plsr.Pwnzor.Players:TempPosIgnore(target)
+				TriggerClientEvent("Hospital:Client:ICU:Sent", target)
+				TriggerClientEvent("Hospital:Client:ICU:Enter", target)
+				plsr.Execute:Client(target, "Notification", "Info", "You Were Admitted To ICU")
+			else
+				return false
+			end
+		end,
+		Release = function(self, target)
+			local char = plsr.Fetch:CharacterSource(target)
+			if char ~= nil then
+				char:SetData("ICU", {
+					Released = true,
+					Items = false,
+				})
+				plsr.Execute:Client(target, "Notification", "Info", "You Were Released From ICU")
+			else
+				return false
+			end
+		end,
+		GetItems = function(self, target)
+			local char = plsr.Fetch:CharacterSource(target)
+			if char ~= nil then
+				char:SetData("ICU", {
+					Released = true,
+					Items = true,
+				})
+				plsr.Inventory.Holding:Take(target)
+			else
+				return false
+			end
+		end,
+	},
+}
+
+AddEventHandler("Proxy:Shared:RegisterReady", function()
+	exports["pulsar_core"]:RegisterComponent("Hospital", HOSPITAL)
 end)

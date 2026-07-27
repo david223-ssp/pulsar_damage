@@ -16,27 +16,6 @@ Config.WeaponClasses = {
 	["NOTHING"] = 13,
 }
 
-Config.WoundStates = {
-	"Irritated",
-	"Fairly Painful",
-	"Extremely Painful",
-	"Unbearably Painful",
-}
-
-Config.BleedingStates = {
-	"Minor Bleeding",
-	"Significant Bleeding",
-	"Major Bleeding",
-	"Extreme Bleeding",
-}
-
-Config.MovementRate = {
-	0.98,
-	0.96,
-	0.94,
-	0.92,
-}
-
 Config.DamageTypes = {
 	[1] = "SmallBullet",
 	[2] = "MedBullet",
@@ -152,7 +131,6 @@ Config.BoneLabels = {
 
 Config.WeaponClassBindings = {
 	[`WEAPON_STUNGUN`] = Config.WeaponClasses["NONE"],
-	[`WEAPON_TASER`] = Config.WeaponClasses["NONE"],
 
 	--[[ Small Caliber ]]
 	--
@@ -168,33 +146,13 @@ Config.WeaponClassBindings = {
 	[`WEAPON_SNSPISTOL`] = Config.WeaponClasses["SMALL_CALIBER"],
 	[`WEAPON_SNSPISTOL_MK2`] = Config.WeaponClasses["SMALL_CALIBER"],
 	[`WEAPON_VINTAGEPISTOL`] = Config.WeaponClasses["SMALL_CALIBER"],
-	[`WEAPON_GLOCK19`] = Config.WeaponClasses["SMALL_CALIBER"],
-	[`WEAPON_GLOCK19_CIV`] = Config.WeaponClasses["SMALL_CALIBER"],
 	[`WEAPON_FNX`] = Config.WeaponClasses["SMALL_CALIBER"],
 	[`WEAPON_P3200`] = Config.WeaponClasses["SMALL_CALIBER"],
 	[`WEAPON_HEAVYPISTOL`] = Config.WeaponClasses["SMALL_CALIBER"],
 	[`WEAPON_MARKSMANPISTOL`] = Config.WeaponClasses["SMALL_CALIBER"],
 	[`WEAPON_PISTOL50`] = Config.WeaponClasses["SMALL_CALIBER"],
-	[`WEAPON_L5`] = Config.WeaponClasses["SMALL_CALIBER"],
 	[`WEAPON_REVOLVER`] = Config.WeaponClasses["SMALL_CALIBER"],
 	[`WEAPON_REVOLVER_MK2`] = Config.WeaponClasses["SMALL_CALIBER"],
-	[`WEAPON_L5`] = Config.WeaponClasses["SMALL_CALIBER"],
-	[`WEAPON_2011`] = Config.WeaponClasses["SMALL_CALIBER"],
-	[`WEAPON_38SNUBNOSE`] = Config.WeaponClasses["SMALL_CALIBER"],
-	[`WEAPON_38SNUBNOSE2`] = Config.WeaponClasses["SMALL_CALIBER"],
-	[`WEAPON_38SNUBNOSE2`] = Config.WeaponClasses["SMALL_CALIBER"],
-	[`WEAPON_38SPECIAL`] = Config.WeaponClasses["SMALL_CALIBER"],
-	[`WEAPON_44MAGNUM`] = Config.WeaponClasses["SMALL_CALIBER"],
-	[`WEAPON_44MAGNUM_PD`] = Config.WeaponClasses["SMALL_CALIBER"],
-	[`WEAPON_FM1_CZ75`] = Config.WeaponClasses["SMALL_CALIBER"],
-	[`WEAPON_FN509`] = Config.WeaponClasses["SMALL_CALIBER"],
-	[`WEAPON_SWMP9`] = Config.WeaponClasses["SMALL_CALIBER"],
-	[`WEAPON_FM1_P226`] = Config.WeaponClasses["SMALL_CALIBER"],
-	[`WEAPON_FIVESEVEN`] = Config.WeaponClasses["SMALL_CALIBER"],
-	[`WEAPON_FM1_M9A3`] = Config.WeaponClasses["SMALL_CALIBER"],
-	[`WEAPON_FIVESEVEN_PD`] = Config.WeaponClasses["SMALL_CALIBER"],
-	[`WEAPON_FM1_P226_PD`] = Config.WeaponClasses["SMALL_CALIBER"],
-	[`WEAPON_2011_PD`] = Config.WeaponClasses["SMALL_CALIBER"],
 
 	--[[ Medium Caliber ]]
 	--
@@ -211,15 +169,7 @@ Config.WeaponClassBindings = {
 	[`WEAPON_SMG_MK2`] = Config.WeaponClasses["MEDIUM_CALIBER"],
 	[`WEAPON_SPECIALCARBINE`] = Config.WeaponClasses["MEDIUM_CALIBER"],
 	[`WEAPON_SPECIALCARBINE_MK2`] = Config.WeaponClasses["MEDIUM_CALIBER"],
-	[`WEAPON_P90FM`] = Config.WeaponClasses["MEDIUM_CALIBER"],
-	[`WEAPON_MP9A`] = Config.WeaponClasses["MEDIUM_CALIBER"],
-	[`WEAPON_MINIUZI`] = Config.WeaponClasses["MEDIUM_CALIBER"],
-	[`WEAPON_PP19`] = Config.WeaponClasses["MEDIUM_CALIBER"],
-	[`WEAPON_MPX`] = Config.WeaponClasses["MEDIUM_CALIBER"],
 	[`WEAPON_MP5`] = Config.WeaponClasses["MEDIUM_CALIBER"],
-	[`WEAPON_VECTOR`] = Config.WeaponClasses["MEDIUM_CALIBER"],
-	[`WEAPON_HKUMP`] = Config.WeaponClasses["MEDIUM_CALIBER"],
-	[`WEAPON_HKUMP_PD`] = Config.WeaponClasses["MEDIUM_CALIBER"],
 
 	--[[ High Caliber ]]
 	--
@@ -235,30 +185,7 @@ Config.WeaponClassBindings = {
 	[`WEAPON_MINIGUN`] = Config.WeaponClasses["HIGH_CALIBER"],
 	[`WEAPON_MUSKET`] = Config.WeaponClasses["HIGH_CALIBER"],
 	[`WEAPON_RAILGUN`] = Config.WeaponClasses["HIGH_CALIBER"],
-	[`WEAPON_AR15`] = Config.WeaponClasses["HIGH_CALIBER"],
-	[`WEAPON_AR15_PD`] = Config.WeaponClasses["HIGH_CALIBER"],
-	[`WEAPON_AK74`] = Config.WeaponClasses["HIGH_CALIBER"],
 	[`WEAPON_AK47`] = Config.WeaponClasses["HIGH_CALIBER"],
-	[`WEAPON_SA80`] = Config.WeaponClasses["HIGH_CALIBER"],
-	[`WEAPON_MB47`] = Config.WeaponClasses["HIGH_CALIBER"],
-	[`WEAPON_G36`] = Config.WeaponClasses["HIGH_CALIBER"],
-	[`WEAPON_M249`] = Config.WeaponClasses["HIGH_CALIBER"],
-	[`WEAPON_FM1_HK416`] = Config.WeaponClasses["HIGH_CALIBER"],
-	[`WEAPON_FM2_HK416`] = Config.WeaponClasses["HIGH_CALIBER"],
-	[`WEAPON_HK417`] = Config.WeaponClasses["HIGH_CALIBER"],
-	[`WEAPON_FM1_HONEYBADGER`] = Config.WeaponClasses["HIGH_CALIBER"],
-	[`WEAPON_AK74_1`] = Config.WeaponClasses["HIGH_CALIBER"],
-	[`WEAPON_AK74_2`] = Config.WeaponClasses["HIGH_CALIBER"],
-	[`WEAPON_ASVAL`] = Config.WeaponClasses["HIGH_CALIBER"],
-	[`WEAPON_MCXRATTLER`] = Config.WeaponClasses["HIGH_CALIBER"],
-	[`WEAPON_MCXSPEAR`] = Config.WeaponClasses["HIGH_CALIBER"],
-	[`WEAPON_MK14`] = Config.WeaponClasses["HIGH_CALIBER"],
-	[`WEAPON_MK47BANSHEE2`] = Config.WeaponClasses["HIGH_CALIBER"],
-	[`WEAPON_MK47BANSHEE`] = Config.WeaponClasses["HIGH_CALIBER"],
-	[`WEAPON_MK47FM`] = Config.WeaponClasses["HIGH_CALIBER"],
-	[`WEAPON_NSR9`] = Config.WeaponClasses["HIGH_CALIBER"],
-	[`WEAPON_PM4`] = Config.WeaponClasses["HIGH_CALIBER"],
-	[`WEAPON_RFB`] = Config.WeaponClasses["HIGH_CALIBER"],
 
 	--[[ Shotguns ]]
 	--
@@ -270,9 +197,6 @@ Config.WeaponClassBindings = {
 	[`WEAPON_PUMPSHOTGUN_MK2`] = Config.WeaponClasses["SHOTGUN"],
 	[`WEAPON_SAWNOFFSHOTGUN`] = Config.WeaponClasses["SHOTGUN"],
 	[`WEAPON_SWEEPERSHOTGUN`] = Config.WeaponClasses["SHOTGUN"],
-	[`WEAPON_BENELLIM2`] = Config.WeaponClasses["SHOTGUN"],
-	[`WEAPON_BENELLIM2_PD`] = Config.WeaponClasses["SHOTGUN"],
-	[`WEAPON_DOUBLEBARRELFM`] = Config.WeaponClasses["SHOTGUN"],
 
 	--[[ Animals ]]
 	--

@@ -1,18 +1,19 @@
+local config = load(LoadResourceFile(GetCurrentResourceName(), "config/shared.lua"))()
+
 function HospitalCallbacks()
-	exports["pulsar-chat"]:RegisterCommand(
+	plsr.Chat:RegisterCommand(
 		"icu",
 		function(source, args, rawCommand)
 			if tonumber(args[1]) then
-				local char = exports['pulsar-characters']:FetchBySID(tonumber(args[1]))
+				local char = plsr.Fetch:SID(tonumber(args[1]))
 				if char ~= nil then
-					exports['pulsar-damage']:HospitalICUSend(char:GetData("Source"))
-					exports["pulsar-chat"]:SendSystemSingle(source,
-						string.format("%s Has Been Admitted To ICU", args[1]))
+					plsr.Hospital.ICU:Send(char:GetData("Source"))
+					plsr.Chat.Send.System:Single(source, string.format("%s Has Been Admitted To ICU", args[1]))
 				else
-					exports["pulsar-chat"]:SendSystemSingle(source, "State ID Not Logged In")
+					plsr.Chat.Send.System:Single(source, "State ID Not Logged In")
 				end
 			else
-				exports["pulsar-chat"]:SendSystemSingle(source, "Invalid Arguments")
+				plsr.Chat.Send.System:Single(source, "Invalid Arguments")
 			end
 		end,
 		{
@@ -31,20 +32,19 @@ function HospitalCallbacks()
 			},
 		}
 	)
-	exports["pulsar-chat"]:RegisterCommand(
+	plsr.Chat:RegisterCommand(
 		"release",
 		function(source, args, rawCommand)
 			if tonumber(args[1]) then
-				local char = exports['pulsar-characters']:FetchBySID(tonumber(args[1]))
+				local char = plsr.Fetch:SID(tonumber(args[1]))
 				if char ~= nil and char:GetData("ICU") ~= nil and not char:GetData("ICU").Released then
-					exports['pulsar-damage']:HospitalICURelease(char:GetData("Source"))
-					exports["pulsar-chat"]:SendSystemSingle(source,
-						string.format("%s Has Been Released From ICU", args[1]))
+					plsr.Hospital.ICU:Release(char:GetData("Source"))
+					plsr.Chat.Send.System:Single(source, string.format("%s Has Been Released From ICU", args[1]))
 				else
-					exports["pulsar-chat"]:SendSystemSingle(source, "State ID Not Logged In")
+					plsr.Chat.Send.System:Single(source, "State ID Not Logged In")
 				end
 			else
-				exports["pulsar-chat"]:SendSystemSingle(source, "Invalid Arguments")
+				plsr.Chat.Send.System:Single(source, "Invalid Arguments")
 			end
 		end,
 		{
@@ -64,28 +64,27 @@ function HospitalCallbacks()
 		}
 	)
 
-	exports["pulsar-core"]:RegisterServerCallback("Hospital:Treat", function(source, data, cb)
-		local char = exports['pulsar-characters']:FetchCharacterSource(source)
-		local bed = exports['pulsar-damage']:HospitalRequestBed(source)
+	plsr.Callbacks:RegisterServerCallback("Hospital:Treat", function(source, data, cb)
+		local char = plsr.Fetch:CharacterSource(source)
+		local bed = plsr.Hospital:RequestBed(source)
 
-		local cost = 1500
+		local cost = config.Medical.checkInPrice
 		-- if not GlobalState["Duty:ems"] or GlobalState["Duty:ems"] == 0 then
 		-- 	cost = 150
 		-- end
 
-		exports['pulsar-finance']:BillingCharge(source, cost, "Medical Services",
-			"Use of facilities at St. Fiacre Medical Center")
+		plsr.Billing:Charge(source, cost, "Medical Services", "Use of facilities at St. Fiacre Medical Center")
 
-		local f = exports['pulsar-finance']:AccountsGetOrganization("ems")
-		exports['pulsar-finance']:BalanceDeposit(f.Account, cost / 2, {
+		local f = plsr.Banking.Accounts:GetOrganization("ems")
+		plsr.Banking.Balance:Deposit(f.Account, cost / 2, {
 			type = "deposit",
 			title = "Medical Treatment",
 			description = string.format("Medical Bill For %s %s", char:GetData("First"), char:GetData("Last")),
 			data = {},
 		}, true)
 
-		f = exports['pulsar-finance']:AccountsGetOrganization("government")
-		exports['pulsar-finance']:BalanceDeposit(f.Account, cost / 2, {
+		f = plsr.Banking.Accounts:GetOrganization("government")
+		plsr.Banking.Balance:Deposit(f.Account, cost / 2, {
 			type = "deposit",
 			title = "Medical Treatment",
 			description = string.format("Medical Bill For %s %s", char:GetData("First"), char:GetData("Last")),
@@ -95,20 +94,20 @@ function HospitalCallbacks()
 		cb(bed)
 	end)
 
-	exports["pulsar-core"]:RegisterServerCallback("Hospital:Respawn", function(source, data, cb)
-		local char = exports['pulsar-characters']:FetchCharacterSource(source)
-		if os.time() >= Player(source).state.releaseTime then
-			exports['pulsar-pwnzor']:TempPosIgnore(source)
-			local bed = exports['pulsar-damage']:HospitalRequestBed(source)
+	plsr.Callbacks:RegisterServerCallback("Hospital:Respawn", function(source, data, cb)
+		local char = plsr.Fetch:CharacterSource(source)
+		local deadEntry = char ~= nil and _deadCunts[char:GetData("SID")] or nil
+		if deadEntry ~= nil and os.time() >= deadEntry.releaseTime then
+			plsr.Pwnzor.Players:TempPosIgnore(source)
+			local bed = plsr.Hospital:RequestBed(source)
 
-			local cost = 1500
+			local cost = config.Medical.checkInPrice
 			-- if not GlobalState["Duty:ems"] or GlobalState["Duty:ems"] == 0 then
 			-- 	cost = 150
 			-- end
 
-			exports['pulsar-finance']:BillingCharge(source, cost, "Medical Services",
-				"Use of facilities at St. Fiacre Medical Center")
-			exports['pulsar-core']:LoggerInfo(
+			plsr.Billing:Charge(source, cost, "Medical Services", "Use of facilities at St. Fiacre Medical Center")
+			plsr.Logger:Info(
 				"Robbery",
 				string.format(
 					"%s %s (%s) Respawned Via Local EMS",
@@ -128,16 +127,16 @@ function HospitalCallbacks()
 				}
 			)
 
-			local f = exports['pulsar-finance']:AccountsGetOrganization("ems")
-			exports['pulsar-finance']:BalanceDeposit(f.Account, cost / 2, {
+			local f = plsr.Banking.Accounts:GetOrganization("ems")
+			plsr.Banking.Balance:Deposit(f.Account, cost / 2, {
 				type = "deposit",
 				title = "Medical Treatment",
 				description = string.format("Medical Bill For %s %s", char:GetData("First"), char:GetData("Last")),
 				data = {},
 			}, true)
 
-			f = exports['pulsar-finance']:AccountsGetOrganization("government")
-			exports['pulsar-finance']:BalanceDeposit(f.Account, cost / 2, {
+			f = plsr.Banking.Accounts:GetOrganization("government")
+			plsr.Banking.Balance:Deposit(f.Account, cost / 2, {
 				type = "deposit",
 				title = "Medical Treatment",
 				description = string.format("Medical Bill For %s %s", char:GetData("First"), char:GetData("Last")),
@@ -150,48 +149,46 @@ function HospitalCallbacks()
 		end
 	end)
 
-	exports["pulsar-core"]:RegisterServerCallback("Hospital:FindBed", function(source, data, cb)
-		cb(exports['pulsar-damage']:HospitalFindBed(source, data))
+	plsr.Callbacks:RegisterServerCallback("Hospital:FindBed", function(source, data, cb)
+		cb(plsr.Hospital:FindBed(source, data))
 	end)
 
-	exports["pulsar-core"]:RegisterServerCallback("Hospital:OccupyBed", function(source, data, cb)
-		cb(exports['pulsar-damage']:HospitalOccupyBed(source, data))
+	plsr.Callbacks:RegisterServerCallback("Hospital:OccupyBed", function(source, data, cb)
+		cb(plsr.Hospital:OccupyBed(source, data))
 	end)
 
-	exports["pulsar-core"]:RegisterServerCallback("Hospital:LeaveBed", function(source, data, cb)
-		cb(exports['pulsar-damage']:HospitalLeaveBed(source))
+	plsr.Callbacks:RegisterServerCallback("Hospital:LeaveBed", function(source, data, cb)
+		cb(plsr.Hospital:LeaveBed(source))
 	end)
 
-	exports["pulsar-core"]:RegisterServerCallback("Hospital:RetreiveItems", function(source, data, cb)
-		exports['pulsar-damage']:HospitalICUGetItems(source)
+	plsr.Callbacks:RegisterServerCallback("Hospital:RetreiveItems", function(source, data, cb)
+		plsr.Hospital.ICU:GetItems(source)
 	end)
 
-	exports["pulsar-core"]:RegisterServerCallback("Hospital:HiddenRevive", function(source, data, cb)
-		local char = exports['pulsar-characters']:FetchCharacterSource(source)
-		local p = Player(source).state
-		if p.isEscorting ~= nil then
-			local t = Player(p.isEscorting).state
-			if t ~= nil and t.isDead then
-				if exports['pulsar-finance']:CryptoExchangeRemove("MALD", char:GetData("CryptoWallet"), 20) then
+	plsr.Callbacks:RegisterServerCallback("Hospital:HiddenRevive", function(source, data, cb)
+		local char = plsr.Fetch:CharacterSource(source)
+		local isEscorting = plsr.Escort:GetEscorting(source)
+		if isEscorting ~= nil then
+			if plsr.State:Player(isEscorting).isDead then
+				if plsr.Crypto.Exchange:Remove("MALD", char:GetData("CryptoWallet"), config.Medical.reviveEscortPrice) then
 					cb(true)
-					local tChar = exports['pulsar-characters']:FetchCharacterSource(p.isEscorting)
+					local tChar = plsr.Fetch:CharacterSource(isEscorting)
 					if tChar ~= nil then
-						exports["pulsar-core"]:ClientCallback(tChar:GetData("Source"), "Damage:Heal", true)
+						plsr.Callbacks:ClientCallback(tChar:GetData("Source"), "Damage:Heal", true)
 					else
-						exports['pulsar-hud']:Notification(source, "error", "Invalid Target")
+						plsr.Execute:Client(source, "Notification", "Error", "Invalid Target")
 					end
 				else
 					cb(false)
-					exports['pulsar-hud']:Notification(source, "error", "Not Enough Crypto")
+					plsr.Execute:Client(source, "Notification", "Error", "Not Enough Crypto")
 				end
 			end
 		end
 	end)
 
-	exports["pulsar-core"]:RegisterServerCallback("Hospital:SpawnICU", function(source, data, cb)
-		exports["pulsar-core"]:RoutePlayerToGlobalRoute(source)
-		local char = exports['pulsar-characters']:FetchCharacterSource(source)
-		Player(source).state.ICU = false
+	plsr.Callbacks:RegisterServerCallback("Hospital:SpawnICU", function(source, data, cb)
+		plsr.Routing:RoutePlayerToGlobalRoute(source)
+		local char = plsr.Fetch:CharacterSource(source)
 		TriggerClientEvent("Hospital:Client:ICU:Enter", source)
 		cb(true)
 	end)

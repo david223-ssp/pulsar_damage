@@ -1,5 +1,7 @@
+local config = load(LoadResourceFile(GetCurrentResourceName(), "config/shared.lua"))()
+
 function PrisonVisitation()
-	exports['pulsar-polyzone']:CreateBox("prison_visitation", vector3(1831.24, 2585.78, 46.01), 12.4, 8.2, {
+	plsr.Polyzone.Create:Box("prison_visitation", vector3(1831.24, 2585.78, 46.01), 12.4, 8.2, {
 		heading = 0,
 		--debugPoly=true,
 		minZ = 44.21,
@@ -12,41 +14,27 @@ function PrisonVisitation()
 end
 
 function PrisonHospitalInit()
-	exports['pulsar-pedinteraction']:Add(
+	plsr.PedInteraction:Add(
 		"PrisonHospital",
 		`s_m_m_doctor_01`,
 		vector3(1769.832, 2571.891, 44.730),
 		138.556,
-		Config.PrisonCheckIn.Radius,
-		{
-			{
-				icon = "heart-pulse",
-				text = "Medical Attention - $150",
-				event = "Hospital:Client:PrisonHospitalRevive",
-				data = {},
-				isEnabled = function()
-					-- if not LocalPlayer.state.isEscorted then
-					-- 	return true
-					-- end
-					-- return false
-					return false
-				end,
-			},
-		},
+		config.Prison.location.radius,
+		{},
 		"suitcase-medical",
 		"WORLD_HUMAN_CLIPBOARD"
 	)
 
-	exports['pulsar-polyzone']:CreateBox(
+	plsr.Polyzone.Create:Box(
 		"prison-hospital-check-in-zone",
-		Config.PrisonCheckIn.Coords,
-		Config.PrisonCheckIn.Width,
-		Config.PrisonCheckIn.Length,
+		config.Prison.location.coords,
+		config.Prison.location.width,
+		config.Prison.location.length,
 		{
-			heading = Config.PrisonCheckIn.Heading,
+			heading = config.Prison.location.heading,
 			--debugPoly=true,
-			minZ = Config.PrisonCheckIn.Coords.z - 1.0,
-			maxZ = Config.PrisonCheckIn.Coords.z + 1.0,
+			minZ = config.Prison.location.coords.z - 1.0,
+			maxZ = config.Prison.location.coords.z + 1.0,
 		},
 		{}
 	)
@@ -57,20 +45,20 @@ local _inCheckInZone = false
 AddEventHandler("Polyzone:Enter", function(id, point, insideZone, data)
 	if id == "prison-hospital-check-in-zone" then
 		_inCheckInZone = true
-		if not LocalPlayer.state.isEscorted then
-			exports['pulsar-hud']:ActionShow(
+		if plsr.State.flags.myEscorter == nil then
+			plsr.Action:Show(
 				"medical",
-				"{keybind}primary_action{/keybind} Check In {key}$" .. Config.PrisonCheckIn.Cost .. "{/key}"
+				"{keybind}primary_action{/keybind} Check In {key}$" .. config.Prison.checkInPrice .. "{/key}"
 			)
 		end
 	end
 
-	if id == "prison_visitation" and not hasValue(data.allowJobs, LocalPlayer.state.onDuty) then
+	if id == "prison_visitation" and not hasValue(data.allowJobs, plsr.State.flags.onDuty) then
 		if data.disableEscorting then
-			LocalPlayer.state:set("AllowEscorting", false, true)
+			plsr.State.flags.AllowEscorting = false
 		end
 		if data.disableInventory then
-			exports.ox_inventory:Disable()
+			plsr.Inventory:Disable()
 		end
 	end
 end)
@@ -78,21 +66,21 @@ end)
 AddEventHandler("Polyzone:Exit", function(id, point, insideZone, data)
 	if id == "prison-hospital-check-in-zone" then
 		_inCheckInZone = false
-		exports['pulsar-hud']:ActionHide("medical")
+		plsr.Action:Hide("medical")
 	end
 	if id == "prison_visitation" then
 		if data.disableEscorting then
-			LocalPlayer.state:set("AllowEscorting", true, true)
+			plsr.State.flags.AllowEscorting = true
 		end
 		if data.disableInventory then
-			exports.ox_inventory:Enable()
+			plsr.Inventory:Enable()
 		end
 	end
 end)
 
 AddEventHandler("Keybinds:Client:KeyUp:primary_action", function()
 	if _inCheckInZone then
-		if not LocalPlayer.state.doingAction and not LocalPlayer.state.isEscorted then
+		if not plsr.State.flags.doingAction and not plsr.State.flags.myEscorter ~= nil then
 			TriggerEvent("Hospital:Client:PrisonHospitalRevive")
 		end
 	end
@@ -111,7 +99,7 @@ AddEventHandler("Hospital:Client:PrisonHospitalRevive", function(entity, data)
 		flags = _animFlag,
 	}
 
-	if LocalPlayer.state.isDead then
+	if _dmg.isDead then
 		_animObj = {
 			animDict = "dead",
 			anim = "dead_d",
@@ -119,9 +107,9 @@ AddEventHandler("Hospital:Client:PrisonHospitalRevive", function(entity, data)
 		}
 	end
 
-	exports['pulsar-hud']:Progress({
+	plsr.Progress:Progress({
 		name = "prison_hospital_revive_action",
-		duration = (math.random(10) + 45) * 1000,
+		duration = (math.random(config.Prison.healingDuration.variance) + config.Prison.healingDuration.base) * 1000,
 		label = "Healing",
 		useWhileDead = true,
 		canCancel = true,
@@ -139,9 +127,9 @@ AddEventHandler("Hospital:Client:PrisonHospitalRevive", function(entity, data)
 		},
 	}, function(status)
 		if not status then
-			exports["pulsar-core"]:ServerCallback("Hospital:PrisonHospitalRevive", {}, function(s)
+			plsr.Callbacks:ServerCallback("Hospital:PrisonHospitalRevive", {}, function(s)
 				if s then
-					exports['pulsar-escort']:StopEscort()
+					plsr.Escort:StopEscort()
 				end
 			end)
 		end

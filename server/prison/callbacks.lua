@@ -1,34 +1,33 @@
+local config = load(LoadResourceFile(GetCurrentResourceName(), "config/shared.lua"))()
+
 function PrisonHospitalCallbacks()
-	exports["pulsar-core"]:RegisterServerCallback("Hospital:PrisonHospitalRevive", function(source, data, cb)
-		local char = exports['pulsar-characters']:FetchCharacterSource(source)
-		local p = Player(source).state
-		local cost = Config.PrisonCheckIn.Cost
+	plsr.Callbacks:RegisterServerCallback("Hospital:PrisonHospitalRevive", function(source, data, cb)
+		local char = plsr.Fetch:CharacterSource(source)
+		local cost = config.Prison.checkInPrice
 
-		exports['pulsar-finance']:BillingCharge(source, cost, "Medical Services",
-			"Use of facilities at Bolingbroke Infirmary")
+		plsr.Billing:Charge(source, cost, "Medical Services", "Use of facilities at Bolingbroke Infirmary")
 
-		local f = exports['pulsar-finance']:AccountsGetOrganization("ems")
-		exports['pulsar-finance']:BalanceDeposit(f.Account, cost / 2, {
+		local f = plsr.Banking.Accounts:GetOrganization("ems")
+		plsr.Banking.Balance:Deposit(f.Account, cost / 2, {
 			type = "deposit",
 			title = "Medical Treatment",
 			description = string.format("Medical Bill For %s %s", char:GetData("First"), char:GetData("Last")),
 			data = {},
 		}, true)
 
-		f = exports['pulsar-finance']:AccountsGetOrganization("government")
-		exports['pulsar-finance']:BalanceDeposit(f.Account, cost / 2, {
+		f = plsr.Banking.Accounts:GetOrganization("government")
+		plsr.Banking.Balance:Deposit(f.Account, cost / 2, {
 			type = "deposit",
 			title = "Medical Treatment",
 			description = string.format("Medical Bill For %s %s", char:GetData("First"), char:GetData("Last")),
 			data = {},
 		}, true)
 
-		local tChar = exports['pulsar-characters']:FetchCharacterSource(source)
+		local tChar = plsr.Fetch:CharacterSource(source)
 		if tChar ~= nil then
-			exports["pulsar-core"]:ClientCallback(tChar:GetData("Source"), "Damage:Heal", true)
+			plsr.Callbacks:ClientCallback(tChar:GetData("Source"), "Damage:Heal", true)
 		else
-			exports['pulsar-hud']:Notification(source, "error",
-				"An error has occured. Please report this.")
+			plsr.Execute:Client(source, "Notification", "Error", "An error has occured. Please report this.")
 		end
 
 		cb(true)

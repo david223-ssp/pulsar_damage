@@ -24,7 +24,7 @@ local safdCheckin = {
 }
 
 function SAFDInit()
-	-- exports['pulsar-pedinteraction']:Add(
+	-- PedInteraction:Add(
 	-- 	"hospital-check-in",
 	-- 	`u_f_m_miranda_02`,
 	-- 	vector3(-437.484, -323.269, 33.911),
@@ -36,36 +36,35 @@ function SAFDInit()
 	-- )
 
 	for k, v in ipairs(safdCheckin) do
-		exports.ox_target:addBoxZone({
-			id = "safd-checkin-" .. k,
-			coords = v.coords,
-			size = vector3(v.length, v.width, 2.0),
-			rotation = v.options.heading,
-			debug = v.options.debugPoly,
-			minZ = v.options.minZ,
-			maxZ = v.options.maxZ,
-			options = {
-				{
-					icon = "fas fa-clipboard-check",
-					label = "Go On Duty",
-					event = "EMS:Client:OnDuty",
-					groups = { "ems" },
-					reqOffDuty = true,
+		plsr.Targeting.Zones:AddBox("safd-checkin-" .. k, "clock", v.coords, v.length, v.width, v.options, {
+			{
+				icon = "clipboard-list",
+				text = "Go On Duty",
+				event = "EMS:Client:OnDuty",
+				jobPerms = {
+					{
+						job = "ems",
+						reqOffDuty = true,
+					},
 				},
-				{
-					icon = "fas fa-clipboard",
-					label = "Go Off Duty",
-					event = "EMS:Client:OffDuty",
-					groups = { "ems" },
-					reqDuty = true,
+			},
+			{
+				icon = "clipboard-list",
+				text = "Go Off Duty",
+				event = "EMS:Client:OffDuty",
+				jobPerms = {
+					{
+						job = "ems",
+						reqDuty = true,
+					},
 				},
-			}
-		})
+			},
+		}, 3.0, true)
 	end
 end
 
 RegisterNetEvent("Characters:Client:Spawn", function()
 	for k, v in ipairs(safdCheckin) do
-		exports["pulsar-blips"]:Add("safd-office-" .. k, "Fire & Medical", v.coords, 648, 1, 0.8)
+		plsr.Blips:Add("safd-office-" .. k, "Fire & Medical", v.coords, 648, 1, 0.8)
 	end
 end)
