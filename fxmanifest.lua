@@ -5,7 +5,7 @@ name 'Pulsar Damage'
 description 'Limb damage, medical/hospital, prison, and fire department systems'
 author 'Artmines - maintained for Pulsar Framework'
 url 'https://pulsarframe.work'
-version '2.0.0'
+version 'v1.0.0'
 
 version_check 'yes'
 github 'https://github.com/PulsarFW/pulsar_damage'
