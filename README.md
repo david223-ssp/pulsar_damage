@@ -21,7 +21,7 @@
 
 <br/>
 
-[Overview](#overview) · [Configuration](#configuration) · [Dependencies](#dependencies)
+[Overview](#overview) · [What's Changed](#whats-changed) · [Configuration](#configuration) · [Dependencies](#dependencies)
 
 </div>
 
@@ -32,6 +32,22 @@
 Per-weapon/per-limb damage, the knockdown/death/bleedout cycle, hospital check-in and treatment (EMS billing split between the EMS and government accounts), ICU admission/release, prison intake, and fire department response — all in one server-authoritative resource, no UI of its own
 
 Death/knockdown state (`isDead`, `deadData`, `isDeadTime`, `releaseTime`) lives on the player's state bag; `pulsar_hud` reads it to drive the death screen but owns none of it — this resource is the single source of truth for both the release timers and the medical price it broadcasts via `GlobalState["Medical:Pricing"]`
+
+---
+
+## What's Changed
+
+Changes made on top of the original Pulsar release (`v1.0.0`):
+
+**Bone injuries** (merged from Xoticz-health) — `server/injuries.lua`, `client/injuries.lua`, `Config.Injuries`
+- Server-authoritative per-limb injury (0–100) and bleeding stacks, saved on the character (`Injuries`) and mirrored to the client through the `injuries` player state bag (`plsr.State.flags.injuries`).
+- Limping when a leg/lower-body injury reaches `limpThreshold`, using the same limp as low HP (`ApplyLimp`).
+- Bleeding ticks drain HP per stack but never below `minHealth`, so bleeding cannot kill on its own. Bleed chance is set per weapon class.
+- Fall damage reported on the root bone now lands on a random leg/foot instead of being dropped (`noBoneFallback`).
+- Medical items (`bandage`, `firstaid`, `ifak`, `gauze`, `tourniquet`, …) heal limbs and stop bleeding through `Injuries.items`.
+- A full revive (hospital, `/heal`, respawn) clears injuries when `clearOnRevive = true`.
+- Optional admin test commands: `/hurtbone`, `/showinjuries`, `/clearinjuries` (`testCommands = true`).
+- Injury data is exposed to `pulsar_inventory`'s Health & Injuries tab (`plsr.Damage.Injuries:Get`).
 
 ---
 
@@ -48,6 +64,8 @@ Death/knockdown state (`isDead`, `deadData`, `isDeadTime`, `releaseTime`) lives 
 - `pulsar_core` — framework core
 - `pulsar_pwnzor` — anti-cheat check loaded alongside every resource
 - `pulsar_hud` — displays this resource's death/knockdown/hospital-price state, doesn't own it
+- `pulsar_inventory` — provides the medical items, and its Health & Injuries tab reads this resource's injury data
+- `pulsar_animations` — the injury limp shares its limp walk style
 
 ---
 
