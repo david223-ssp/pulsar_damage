@@ -220,6 +220,17 @@ DAMAGE = {
 		end
 	end,
 	Died = function(self) end,
+	Injuries = {
+		Get = function(self)
+			return GetMyInjuries()
+		end,
+		IsBleeding = function(self)
+			return GetBleedStacks() > 0
+		end,
+		HasLimpInjury = function(self)
+			return HasLimpInjury()
+		end,
+	},
 	Apply = {
 		StandardDamage = function(self, value, armorFirst, forceKill)
 			ApplyDamageToPed(PlayerPedId(), value, armorFirst)

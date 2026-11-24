@@ -90,6 +90,7 @@ CreateThread(function()
 				char:SetData("Damage", nil)
 			end
 			_damagedLimbs[sid] = _damagedLimbs[sid] or {}
+			LoadInjuries(source, char)
 		end
 	end, 2)
 
@@ -119,13 +120,44 @@ CreateThread(function()
 				end
 			end
 
-			for k, v in pairs(damage) do
-				local descStr = ""
+			local injuries = GetInjuries(char:GetData("SID"))
 
+			local bleedingLimbs = 0
+			for _, inj in pairs(injuries) do
+				if (inj.bleeding or 0) > 0 then
+					bleedingLimbs += 1
+				end
+			end
+			if bleedingLimbs > 0 then
+				table.insert(menuData, {
+					label = config.Injuries.text.diag_bleeding_summary_label,
+					description = string.format(config.Injuries.text.diag_bleeding_summary, bleedingLimbs),
+				})
+			end
+
+			local limbs = {}
+			for k in pairs(damage or {}) do
+				limbs[k] = true
+			end
+			for k in pairs(injuries) do
+				limbs[k] = true
+			end
+
+			for k in pairs(limbs) do
 				local data = {}
-				for k2, v2 in pairs(v) do
+				for k2, v2 in pairs((damage or {})[k] or {}) do
 					if v2 > 0 then
 						table.insert(data, string.format("%s %s", v2, Config.DamageTypeLabels[k2]))
+					end
+				end
+
+				local inj = injuries[k]
+				if inj ~= nil then
+					if (inj.damage or 0) > 0 then
+						table.insert(data, string.format(config.Injuries.text.diag_injury, inj.damage))
+					end
+					if (inj.bleeding or 0) > 0 then
+						table.insert(data, string.format(config.Injuries.text.diag_bleeding, inj.bleeding))
 					end
 				end
 
@@ -202,6 +234,26 @@ DAMAGE = {
 	ResetLimbDamage = function(self, sid)
 		_damagedLimbs[sid] = {}
 	end,
+	Injuries = {
+		Get = function(self, sid)
+			return GetInjuries(sid)
+		end,
+		IsBleeding = function(self, sid)
+			return IsBleeding(sid)
+		end,
+		Add = function(self, source, bone, damage, weaponHash)
+			local char = plsr.Fetch:CharacterSource(source)
+			if char ~= nil then
+				InjureLimb(source, char:GetData("SID"), bone, damage, weaponHash)
+			end
+		end,
+		Heal = function(self, source, bones, stopBleed)
+			HealInjuries(source, bones, stopBleed)
+		end,
+		Clear = function(self, source)
+			ClearInjuries(source)
+		end,
+	},
 	Effects = {
 		Painkiller = function(self, source, tier)
 			plsr.Callbacks:ClientCallback(source, "Damage:ApplyPainkiller", config.Medical.painkillerHeal * (tier or 1))
@@ -240,7 +292,15 @@ RegisterNetEvent("Damage:Server:BoneDamage", function(damageData)
 
 	_lastDamageHash[sid] = damageData.hash
 
+	local wasDownBeforeHit = _deadCunts[sid] ~= nil
+
 	local boneName = Config.Bones[damageData.bone]
+	if boneName == nil or boneName == "NONE" then
+		local fallback = config.Injuries.noBoneFallback and config.Injuries.noBoneFallback[damageData.hash]
+		if fallback and #fallback > 0 then
+			boneName = fallback[math.random(#fallback)]
+		end
+	end
 	if boneName ~= nil and boneName ~= "NONE" then
 		if _damagedLimbs[sid][boneName] == nil then
 			_damagedLimbs[sid][boneName] = {}
@@ -251,6 +311,10 @@ RegisterNetEvent("Damage:Server:BoneDamage", function(damageData)
 		local dmgType = Config.ClassDamageTypes[Config.WeaponClassBindings[damageData.hash]]
 		if dmgType ~= nil then
 			_damagedLimbs[sid][boneName][dmgType] += 1
+		end
+
+		if not wasDownBeforeHit then
+			InjureLimb(src, sid, boneName, damageData.damage, damageData.hash)
 		end
 	end
 
@@ -299,6 +363,9 @@ RegisterNetEvent("Damage:Server:Revived", function(wasMinor, wasFieldTreatment)
 			)
 		)
 		plsr.Damage:ResetLimbDamage(sid)
+		if config.Injuries.clearOnRevive then
+			ClearInjuries(src)
+		end
 	else
 		if wasMinor then
 			plsr.Logger:Trace(

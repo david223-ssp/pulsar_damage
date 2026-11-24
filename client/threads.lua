@@ -25,12 +25,18 @@ AddEventHandler("Damage:Client:Triggers:EntityDamaged", function(victim, attacke
 
     local hit, bone = GetPedLastDamageBone(victim)
 
+	-- HP lost on this hit, used by the bone injury system (server/injuries.lua)
+	local hpNow = GetEntityHealth(victim)
+	local hpLost = (_hpSnapshot or hpNow) - hpNow
+	_hpSnapshot = hpNow
+
 	-- reported per-hit (not batched) so the server always has a fresh cause-of-death fallback
 	TriggerServerEvent("Damage:Server:BoneDamage", {
         hash = pWeapon,
         source = attacker,
         melee = isMelee,
         bone = bone,
+        damage = hpLost > 0 and hpLost or nil,
     })
 
 	local armor = GetPedArmour(PlayerPedId())
@@ -118,6 +124,14 @@ function StartThreads()
             Wait(20)
         end
     end)
+
+	-- HP snapshot so each hit can measure how much HP it took (see EntityDamaged handler)
+	CreateThread(function()
+		while _dmg.loggedIn do
+			_hpSnapshot = GetEntityHealth(PlayerPedId())
+			Wait(250)
+		end
+	end)
 
 	local lastHp = 0
 	local lastArmor = 0

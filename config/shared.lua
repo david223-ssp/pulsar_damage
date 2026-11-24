@@ -419,4 +419,71 @@ return {
 			-- { x = 312.01, y = -583.34, z = 43.29, h = 66.16 },
 		},
 	},
+
+	-- Bone injuries (merged from Xoticz-health): per-limb injury 0-100 + bleeding, with real effects.
+	-- Limb keys are the names from data/limbs.lua (Config.Bones / Config.BoneLabels).
+	Injuries = {
+		enabled = true,
+		damageMultiplier = 1.0, -- injury points per HP lost on a hit
+		minDamage = 3, -- hits that remove less HP than this (e.g. absorbed by armor) don't injure
+		fallbackDamage = 10, -- used when the HP drop of a hit couldn't be measured
+		limpThreshold = 40, -- injury on one of limpParts at or above this makes the player limp (same limp as low HP)
+		limpParts = { LOWER_BODY = true, LLEG = true, RLEG = true, LFOOT = true, RFOOT = true },
+		-- GTA reports most fall damage on the root bone (0 = "NONE"), which used to drop the injury; such hits from these
+		-- causes land on one random limb of the list instead
+		noBoneFallback = {
+			[`WEAPON_FALL`] = { "LLEG", "RLEG", "LFOOT", "RFOOT", "LOWER_BODY" },
+		},
+		clearOnRevive = true, -- full revive (hospital, /heal, respawn) clears injuries; knockouts and field treatment don't
+		testCommands = false, -- admin commands: /hurtbone /showinjuries /clearinjuries
+
+		bleed = {
+			enabled = true,
+			tickInterval = 5000, -- ms between bleed ticks
+			damagePerTick = 2, -- HP lost per bleeding stack per tick
+			minHealth = 110, -- bleeding never drains below this (<= 100 is dead), so it can't kill on its own
+			maxStacks = 5, -- max bleeding stacks per limb
+			notifyEvery = 6, -- remind the player they're bleeding every N ticks (0 = never)
+			-- % chance per hit to add a bleeding stack, by weapon class (Config.WeaponClasses in data/limbs.lua)
+			chance = {
+				SMALL_CALIBER = 50,
+				MEDIUM_CALIBER = 60,
+				HIGH_CALIBER = 75,
+				SHOTGUN = 70,
+				CUTTING = 70,
+				WILDLIFE = 50,
+				EXPLOSIVE = 50,
+				HEAVY_IMPACT = 15,
+				LIGHT_IMPACT = 5,
+				OTHER = 10, -- falls, water cannon
+				FIRE = 0,
+				SUFFOCATING = 0,
+			},
+			defaultChance = 5, -- unarmed / weapons not listed in Config.WeaponClassBindings
+		},
+
+		-- Medical items (pulsar_inventory/items/medical.lua)
+		-- consume = false -> pulsar_police already handles the item (HP + removal), this only adds the injury effect
+		-- consume = true  -> this removes the item itself; requireBleeding refuses it (not consumed) when not bleeding
+		items = {
+			bandage = { bones = 20, stopBleed = 1 },
+			firstaid = { bones = 50, stopBleed = 2 },
+			ifak = { bones = "all", stopBleed = "all" },
+			morphine = { bones = 10 },
+			gauze = { stopBleed = 1, consume = true, requireBleeding = true },
+			tourniquet = { stopBleed = "all", consume = true, requireBleeding = true },
+		},
+
+		text = {
+			item_treated = "Trataste os teus ferimentos.",
+			item_bleed_stopped = "Estancaste o sangramento.",
+			not_bleeding = "Não estás a sangrar.",
+			cant_use_downed = "Não podes usar isto inconsciente.",
+			bleeding_reminder = "Estás a sangrar. Trata a ferida (gaze, ligadura, garrote).",
+			diag_injury = "Lesão %d/100",
+			diag_bleeding = "A sangrar (x%d)",
+			diag_bleeding_summary_label = "Hemorragia ativa",
+			diag_bleeding_summary = "A sangrar em %d membro(s)",
+		},
+	},
 }

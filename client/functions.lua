@@ -19,8 +19,10 @@ CreateThread(function()
 end)
 
 function ApplyLimp(ped)
-	local shouldLimp = (GetEntityHealth(ped) - 100) <= math.floor((GetEntityMaxHealth(ped) - 100) * config.Vitals.limpThreshold)
-	if shouldLimp and not (plsr.State.flags.onPainKillers or 0 > 0) then -- pre-existing bug: parses as `X or (0 > 0)`, i.e. `not X`
+	-- limp from low HP or from a leg/foot/pelvis injury (client/injuries.lua); painkillers suppress both
+	local lowHp = (GetEntityHealth(ped) - 100) <= math.floor((GetEntityMaxHealth(ped) - 100) * config.Vitals.limpThreshold)
+	local shouldLimp = lowHp or HasLimpInjury()
+	if shouldLimp and not ((plsr.State.flags.onPainKillers or 0) > 0) then
 		if not plsr.State.flags.isLimping then
 			plsr.State.flags.isLimping = true
 			plsr.Animations.PedFeatures:RequestFeaturesUpdate()

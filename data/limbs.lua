@@ -117,6 +117,7 @@ Config.BoneLabels = {
 	["NECK"] = "Neck",
 	["SPINE"] = "Spine",
 	["UPPER_BODY"] = "Upper Body",
+	["LOWER_BODY"] = "Lower Body", -- pelvis (bone 11816); without a label InjureLimb dropped every hit there
 	["LARM"] = "Left Arm",
 	["LHAND"] = "Left Hand",
 	["LFINGER"] = "Left Hand Finger",
